@@ -1,0 +1,91 @@
+#!/bin/sh
+
+INSTANCE=$1
+LOCKFILE="/tmp/lockfile_$$"
+
+TGT_IFACE=$(uci -q get ifmqtoggle."$INSTANCE".iface)
+# unused, left for future reference
+#WAN_IFACE=$(ip route | awk '/default/ { print $5 }')
+
+MQTT_BROKER_HOST=$(uci -q get ifmqtoggle."$INSTANCE".mqtt_broker_host)
+MQTT_BROKER_PORT=$(uci -q get ifmqtoggle."$INSTANCE".mqtt_broker_port)
+MQTT_TOPIC=$(uci -q get ifmqtoggle."$INSTANCE".mqtt_topic)
+MQTT_USERNAME=$(uci -q get ifmqtoggle."$INSTANCE".mqtt_username)
+MQTT_PASSWORD=$(uci -q get ifmqtoggle."$INSTANCE".mqtt_password)
+MQTT_OPTIONS=$(uci -q get ifmqtoggle."$INSTANCE".mqtt_options)
+
+MQTT_AUTH=""
+if [ -n "$MQTT_USERNAME" ]; then
+    MQTT_AUTH="-u $MQTT_USERNAME"
+    if [ -n "$MQTT_PASSWORD" ]; then
+        MQTT_AUTH="$MQTT_AUTH -P $MQTT_PASSWORD"
+    fi
+fi
+
+temp=$(uci -q get ifmqtoggle."$INSTANCE".mqtt_broker_retry_delay)
+MQTT_BROKER_RETRY_DELAY=${temp:-5}
+
+cleanup() {
+    echo "Cleaning up..."
+    kill "$MQTT_SUB_PID" 2>/dev/null
+    wait "$MQTT_SUB_PID" 2>/dev/null || true
+    rm -f "$LOCKFILE"
+    echo "Cleanup complete"
+    exit 0
+}
+trap cleanup TERM
+
+# function to handle incoming messages
+handle_message() {
+    message="$1"
+
+    # check for valid JSON message
+    if ! echo "$message" | jq . >/dev/null 2>&1; then
+        echo "Invalid message format, expected JSON"
+        return
+    fi
+
+    # check for valid JSON payload
+    payload=$(echo "$message" | jq -r '.payload')
+    if ! echo "$payload" | jq . >/dev/null 2>&1; then
+        echo "Invalid 'payload' JSON object"
+        return
+    fi
+
+    # parse "active" value from JSON object
+    active=$(echo "$payload" | jq -r '.active')
+    # check value of "active" and trigger actions accordingly
+    if [ "$active" = "true" ]; then
+        echo "ACTION: Restart ${TGT_IFACE} interface"
+        ubus call network.interface."${TGT_IFACE}" up
+    elif [ "$active" = "false" ]; then
+        echo "ACTION: Stop ${TGT_IFACE} interface"
+        ubus call network.interface."${TGT_IFACE}" down
+    else
+        echo "Invalid value for 'active': $active"
+    fi
+}
+
+# subscribe to MQTT topic and process incoming messages
+echo "Starting MQTT sub for topic $MQTT_TOPIC on broker $MQTT_BROKER_HOST:$MQTT_BROKER_PORT"
+while true; do
+    mqtt_sub_pidfile=$(mktemp -u)
+    exec 3< <(mosquitto_sub -F "%j" -h "$MQTT_BROKER_HOST" -p "$MQTT_BROKER_PORT" -t "$MQTT_TOPIC" ${MQTT_AUTH} ${MQTT_OPTIONS} & echo $! > "$mqtt_sub_pidfile")
+    MQTT_SUB_PID=$(cat "$mqtt_sub_pidfile")
+    rm -f "$mqtt_sub_pidfile"
+    while read -r message <&3; do
+        echo "Received message: $message"
+        if [ ! -f $LOCKFILE ]; then
+            touch $LOCKFILE
+            if ! kill -0 $HANDLE_MESSAGE_PID 2>/dev/null; then
+                handle_message "$message" &
+                HANDLE_MESSAGE_PID=$!
+            else
+                echo "Operation[$HANDLE_MESSAGE_PID] still running, discarding message"
+            fi
+            rm -f $LOCKFILE
+        fi
+    done
+    echo "Connection to MQTT broker failed, retrying in $MQTT_BROKER_RETRY_DELAY seconds..."
+    sleep "$MQTT_BROKER_RETRY_DELAY"
+done

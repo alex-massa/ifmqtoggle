@@ -1,0 +1,13 @@
+
+config listener 'mylistener'
+        option enabled '0'
+        option iface ''
+        option mqtt_broker_host 'localhost'
+        option mqtt_broker_port '1883'
+        option mqtt_topic '#'
+        option mqtt_username ''
+        option mqtt_password ''
+        # Refers to mosquitto_sub options. For example, it could be set as:
+        #   '--cafile /path/to/cafile -d -i your_client_id'
+        # Check the man page for mosquitto_sub for allowed options.
+        option mqtt_options ''
