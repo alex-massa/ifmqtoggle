@@ -25,7 +25,7 @@ Please refer to the OpenWrt Wiki for more information on how to build packages:
 
 With the package built, transfer a copy to the target device and install it on using the package manager on your OpenWRT installation:
 ```sh
-opkg install ifmqtoggle_1-1.0.0_all.ipk
+opkg install ifmqtoggle_1.0.0-1_all.ipk
 ```
 
 ## Configuration

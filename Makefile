@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ifmqtoggle
-PKG_VERSION:=1
-PKG_RELEASE:=1.0.0
+PKG_VERSION:=1.0.0
+PKG_RELEASE:=1
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 SRC_DIR=./src
@@ -12,7 +12,7 @@ include $(INCLUDE_DIR)/package.mk
 define Package/$(PKG_NAME)
   SECTION:=network
   CATEGORY:=Network
-  TITLE:=MQTT-based toggle for network interface
+  TITLE:=MQTT-based network interface toggle
   DEPENDS:=+jq +mosquitto-client-ssl
   PKGARCH:=all
 endef
