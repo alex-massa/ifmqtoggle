@@ -67,7 +67,7 @@ I am confident the building process can be automated, though I have not figured 
 With the above steps completed, the package should be built in the `bin/packages/<arch>/mypackages` directory. \
 Transfer a copy to the target device and install it using the package manager on your OpenWrt installation:
 ```sh
-opkg install ifmqtoggle_1.0.0-1_all.ipk
+opkg install ifmqtoggle_1.1.0-1_all.ipk
 ```
 
 ## Configuration
