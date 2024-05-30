@@ -9,6 +9,7 @@ validate_config() {
         'iface:string' \
         'mqtt_broker_host:string' \
         'mqtt_broker_port:uinteger' \
+        'mqtt_broker_retry_delay:uinteger' \
         'mqtt_topic:string' \
         'mqtt_username:string' \
         'mqtt_password:string' \
@@ -18,7 +19,7 @@ validate_config() {
 init_listener() {
     instance=$1
 
-    local enabled iface mqtt_broker_host mqtt_broker_port mqtt_topic mqtt_username mqtt_passw
+    local enabled iface
 
     validate_config "$instance" || {
         echo "Invalid configuration for listener $instance"
@@ -33,7 +34,7 @@ init_listener() {
 
     procd_open_instance
 
-    procd_set_param command /usr/sbin/ifmqtoggle "$instance"
+    procd_set_param command /usr/bin/ifmqtoggle "$instance"
     procd_set_param file /etc/config/ifmqtoggle
     procd_set_param stdout 1
     procd_set_param stderr 1
