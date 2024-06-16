@@ -27,47 +27,39 @@ I am confident the building process can be automated, though I have not figured 
       git checkout v23.05.3
       make distclean
       ```
-  3.  Update and install the packages from the already present feeds:
+  3.  Clone this repository in a directory named `mypackages`, which should be a sibling of the `source` directory:
       ```sh
+      git clone https://github.com/alex-massa/ifmqtoggle $(dirname $(pwd))/mypackages/ifmqtoggle
+      ``` 
+  4. Define a new package feed, update all package feeds, then install the packages from the newly created feed:
+      ```sh
+      echo "src-link mypackages $(dirname $(pwd))/mypackages" >> feeds.conf.default
       ./scripts/feeds update -a
-      ./scripts/feeds install -a
+      ./scripts/feeds install -a -p mypackages
       ```
-  4.  Configure the cross-compilation environment for the target device:
+  5.  Configure the cross-compilation environment for the target device:
       ```sh
       make menuconfig
       ```
       - From the menu, chose the values for **Target System**, **Subtarget**, and **Target Profile** that are suitable for your target device. \
-        The correct values can usually be inferred by checking the content of `/etc/openwrt_release` on the target device.
+        The correct values can usually be inferred by checking the content of `/etc/openwrt_release` on the target device. \
+        **NOTE**: the package *should* be installable on any up-to-date OpenWrt instance regardless of the targets specified above, though this is not thoroughly tested.
+      - Navigate to **Network**, select `ifmqtoggle` from the list of available packages, then use the **Y** key to include the package in the firmware configuration.
       - Exit the configuration menu and save the changes.
-  5.  Build the target-independent tools and the cross-compilation toolchain (this might take some time):
+  6.  Build the target-independent tools and the cross-compilation toolchain (this might take some time):
       ```sh
       make toolchain/install
       ```
-  6.  Clone this repository in a directory named `mypackages`, which should be a sibling of the `source` directory:
+  7.  Build the package:
       ```sh
-      git clone https://github.com/alex-massa/ifmqtoggle $(dirname $(pwd))/mypackages/ifmqtoggle
-      ``` 
-  7.  Update the package feeds and install packages from the `mypackages` feed:
-      ```sh
-      echo "src-link mypackages $(dirname $(pwd))/mypackages" > feeds.conf
-      ./scripts/feeds update mypackages
-      ./scripts/feeds install -a -p mypackages
-      ```
-  8.  Include the package in the configuration of the target firmware:
-      ```sh
-      make menuconfig
-      ```
-      - Navigate to **Network**, select `ifmqtoggle` from the list of available packages, then use the **Y** key to include the package in the firmware configuration.
-      - Exit the configuration menu and save the changes.
-  9.  Build the package:
-      ```sh
-      make package/ifmqtoggle/compile
+      make package/ifmqtoggle/{clean,compile}
       ```
 
 With the above steps completed, the package should be built in the `bin/packages/<arch>/mypackages` directory. \
 Transfer a copy to the target device and install it using the package manager on your OpenWrt installation:
 ```sh
-opkg install ifmqtoggle_1.1.0-1_all.ipk
+opkg update
+opkg install ifmqtoggle_*.ipk
 ```
 
 ## Configuration
