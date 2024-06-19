@@ -2,92 +2,75 @@
 
 This is an OpenWrt utility used to toggle a network interface via MQTT messages.
 
-The utility employs the [mosquitto](https://mosquitto.org/) MQTT client to subscribe to a topic and toggle the state of a network interface based on the received messages. \
-These messages should consist of a JSON payload with a boolean `active` field:
-- When `active` is set to `true`, the target network interface is enabled;
-- When `active` is set to `false`, the target network interface is disabled.
+The utility employs the [mosquitto](https://mosquitto.org/) MQTT client to subscribe to a topic and toggle the state of a network interface based on the received messages.
 
 ## ⚠️ Disclaimer
 
-Be careful when specifying a target network interface in your configuration, as you could potentially get locked out of your access point.
-
+Be careful when specifying a target network interface in your configuration, as you could potentially get locked out of your access point. \
 Always double-check your configuration before applying changes.
-Use this utility at your own risk.
 
 ## Build and installation
 
-The following steps are derived from the ["Hello, world!" for OpenWrt](https://openwrt.org/docs/guide-developer/helloworld/start) guide. \
-I am confident the building process can be automated, though I have not figured out how yet.
-  1.  [Prepare a local OpenWrt build system environment](https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem). \
-      If you are not running a compatible GNU/Linux environment or would rather avoid cluttering your local environment, a virtual machine or even a container should work just as fine.
-  2.  Clone the OpenWrt repository in a directory named `source`, then checkout the branch corresponding to the version of OpenWrt you are running on your target device (as of May 2024, the latest stable release is `v23.05.3`):
-      ```sh
-      git clone https://git.openwrt.org/openwrt/openwrt.git source
-      cd source
-      git checkout v23.05.3
-      make distclean
-      ```
-  3.  Clone this repository in a directory named `mypackages`, which should be a sibling of the `source` directory:
-      ```sh
-      git clone https://github.com/alex-massa/ifmqtoggle $(dirname $(pwd))/mypackages/ifmqtoggle
-      ``` 
-  4. Define a new package feed, update all package feeds, then install the packages from the newly created feed:
-      ```sh
-      echo "src-link mypackages $(dirname $(pwd))/mypackages" >> feeds.conf.default
-      ./scripts/feeds update -a
-      ./scripts/feeds install -a -p mypackages
-      ```
-  5.  Configure the cross-compilation environment for the target device:
-      ```sh
-      make menuconfig
-      ```
-      - From the menu, chose the values for **Target System**, **Subtarget**, and **Target Profile** that are suitable for your target device. \
-        The correct values can usually be inferred by checking the content of `/etc/openwrt_release` on the target device. \
-        **NOTE**: the package *should* be installable on any up-to-date OpenWrt instance regardless of the targets specified above, though this is not thoroughly tested.
-      - Navigate to **Network**, select `ifmqtoggle` from the list of available packages, then use the **Y** key to include the package in the firmware configuration.
-      - Exit the configuration menu and save the changes.
-  6.  Build the target-independent tools and the cross-compilation toolchain (this might take some time):
-      ```sh
-      make toolchain/install
-      ```
-  7.  Build the package:
-      ```sh
-      make package/ifmqtoggle/{clean,compile}
-      ```
+> [!IMPORTANT]
+> The build process requires a running Docker daemon.
 
-With the above steps completed, the package should be built in the `bin/packages/<arch>/mypackages` directory. \
-Transfer a copy to the target device and install it using the package manager on your OpenWrt installation:
+Clone this repository via Git, then build the package by invoking the `make` utility on the `Makefile.build` file:
+```sh
+make -f Makefile.build
+```
+
+> [!NOTE]
+> To automatically remove the build container after the build process, specify the `build` target:
+> ```sh
+> make -f Makefile.build all
+> ```
+
+The build process will run in a container and will result in an `.ipk` package in the present directory once finished. \
+Transfer a copy to the target device via SCP or any other method of your choice, then install it from the device's shell:
 ```sh
 opkg update
 opkg install ifmqtoggle_*.ipk
 ```
 
+Note that the build process does not use the official [OpenWrt SDK container image](https://hub.docker.com/r/openwrt/sdk/) as it wouldn't compile the package dependencies; instead, a Debian image is used to set up the build environment from scratch, which requires a considerable amount of time.
+
+In case you would prefer to manually build the package, check out [this wiki page](https://github.com/alex-massa/ifmqtoggle/wiki/Manually-building-the-package) for instructions.
+
 ## Configuration
 
-The package configuration can be managed either through UCI or by directly editing the configuration file found at `/etc/config/ifmqtoggle`. \
+The package configuration is managed through [UCI](https://openwrt.org/docs/guide-user/base-system/uci) and can be updated either through the CLI utility or by directly editing the configuration file found at `/etc/config/ifmqtoggle`. \
 A sample configuration section is provided when the package is installed.
 
-The configuration should specify the connection parameters to the MQTT broker and the name of the target network interface.
+Multiple interfaces can be managed simultaneously by defining multiple listener sections in the configuration. \
+Listeners will be started in the order they appear in the configuration.
 
-Multiple interfaces can be managed simultaneously by defining multiple listener sections in the configuration file. \
-If you plan on controlling more than one network interface coordinately by using the same MQTT topic for multiple listeners, ensure that each one has a unique client ID specified in the `mqtt_options` option in order to avoid conflicting message consumption. If no client ID is specified, unique IDs should be automatically generated based on the ID of each process.
+The configuration options for each listener should specify the connection parameters to the MQTT broker and the name of the target network interface:
+- `enabled` determines whether the listener is active; set to `1` to enable the listener, otherwise set to `0`.
+- `iface` is the name of the network interface that the listener will manage.
+- `mqtt_broker_host` and `mqtt_broker_port` specify the address and port of the MQTT broker.
+- `mqtt_broker_retry_delay` is the delay in seconds before retrying a failed connection to the MQTT broker; defaults to 5 seconds if unspecified.
+- `mqtt_topic` is the MQTT topic that the listener will subscribe to.
+- `mqtt_username` and `mqtt_password` are the credentials for the MQTT broker; leave empty if no authentication is required.
+- `mqtt_options` are additional options for the MQTT client; these should be formatted as they would be on the command line for `mosquitto_sub`.
 
-**Example**: multiple listeners explicitly specifying different client IDs
-```sh
-config listener 'guest'
-        option enabled '1'
-        option iface 'guest'
-        # ... other options ...
-        option mqtt_options '-i d98a71fe-0bdb-4515-b6f9-091c080d4ee4'
-
-config listener 'wireguard'
-        option enabled '1'
-        option iface 'wg0'
-        # ... other options ...
-        option mqtt_options '-i 51f6dbd0-c10b-4ae7-9ef4-ab35cb3e56ed'
-```
-
-Listeners will be started in the order they are defined in the configuration file.
+> [!NOTE]
+> If you plan on controlling more than one network interface coordinately by using the same MQTT topic for multiple listeners, ensure that each one has a unique client ID specified in the `mqtt_options` option in order to avoid conflicting message consumption.
+> If no client ID is specified, unique IDs should be automatically generated based on the ID of each process.
+>
+> For example, this is what a configuration file with two listeners could look like, with each listener specifying a unique client ID:
+> ```sh
+> config listener 'guest'
+>         option enabled '1'
+>         option iface 'guest'
+>         # ... other options ...
+>         option mqtt_options '-i d98a71fe-0bdb-4515-b6f9-091c080d4ee4'
+> 
+> config listener 'wireguard'
+>         option enabled '1'
+>         option iface 'wg0'
+>         # ... other options ...
+>         option mqtt_options '-i 51f6dbd0-c10b-4ae7-9ef4-ab35cb3e56ed'
+> ```
 
 ## Usage
 
@@ -99,12 +82,21 @@ The utility can be managed as a service:
 - Enable the service on boot: `/etc/init.d/ifmqtoggle enable`
 - Disable the service from starting on boot: `/etc/init.d/ifmqtoggle disable`
 
-## Expected MQTT message format
+### Expected MQTT message format
 
-The utility expects MQTT messages to be simple JSON objects expressed as follows:
+The utility expects MQTT messages to be simple JSON objects with a boolean `active` field:
 
 ```json
-{
-  "active": true
-}
+{ "active": true }
 ```
+
+```json
+{ "active": false }
+```
+
+The value specified in the `active` field is used to update the state of the target network interface:
+- `true`: the utility will attempt to enable the target network interface.
+- `false`: the utility will attempt to disable the target network interface.
+
+Please note that the utility will discard any message with an invalid or missing `active` field. \
+Any other fields present in the message will be ignored.
