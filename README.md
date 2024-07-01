@@ -14,27 +14,22 @@ Always double-check your configuration before applying changes.
 > [!IMPORTANT]
 > The build process requires a running Docker daemon.
 
-Clone this repository via Git, then build the package by invoking the `make` utility on the `Makefile.build` file:
+Clone this repository via Git, then build the package by invoking the `make` utility on the `Makefile` within the `.build` directory:
 ```sh
-make -f Makefile.build
+cd .build
+make
 ```
 
-> [!NOTE]
-> To automatically remove the build container after the build process, specify the `build` target:
-> ```sh
-> make -f Makefile.build all
-> ```
-
-The build process will run in a container and will result in an `.ipk` package in the present directory once finished. \
-Transfer a copy to the target device via SCP or any other method of your choice, then install it from the device's shell:
+The build process will run in a container and will result in an `.ipk` package in the `.build` directory once finished. \
+Transfer a copy to the target device via SCP or any method of your choice, then install it from the device's shell:
 ```sh
 opkg update
-opkg install ifmqtoggle_*.ipk
+opkg install ifmqtoggle_*_all.ipk
 ```
 
 Note that the build process does not use the official [OpenWrt SDK container image](https://hub.docker.com/r/openwrt/sdk/) as it wouldn't compile the package dependencies; instead, a Debian image is used to set up the build environment from scratch, which requires a considerable amount of time.
 
-In case you would prefer to manually build the package, check out [this wiki page](https://github.com/alex-massa/ifmqtoggle/wiki/Manually-building-the-package) for instructions.
+Check out [this wiki page](https://github.com/alex-massa/ifmqtoggle/wiki/Manually-building-the-package) for instructions on manually building the package.
 
 ## Configuration
 
