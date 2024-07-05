@@ -1,6 +1,6 @@
 # Network Interface MQTT Toggle
 
-This is an OpenWrt utility used to toggle a network interface via MQTT messages.
+This is an OpenWrt utility used to toggle network interfaces via MQTT messages.
 
 The utility employs the [mosquitto](https://mosquitto.org/) MQTT client to subscribe to a topic and toggle the state of a network interface based on the received messages.
 
@@ -13,6 +13,9 @@ Always double-check your configuration before applying changes.
 
 > [!IMPORTANT]
 > The build process requires a running Docker daemon.
+>
+> Additionally, devices running on Apple Silicon should enable Rosetta to build the package successfully. \
+> Please refer to the [official Docker documentation](https://docs.docker.com/desktop/settings/mac/#general) on how to enable Rosetta in Docker Desktop for macOS.
 
 Clone this repository via Git, then build the package by invoking the `make` utility on the `Makefile` within the `.build` directory:
 ```sh
@@ -20,16 +23,15 @@ cd .build
 make
 ```
 
-The build process will run in a container and will result in an `.ipk` package in the `.build` directory once finished. \
-Transfer a copy to the target device via SCP or any method of your choice, then install it from the device's shell:
+Once finished, the build process will result in an `.ipk` package in the `.build` directory. \
+Transfer a copy to the target device via SCP or any method of your choice, then install it from the shell of the device:
 ```sh
 opkg update
 opkg install ifmqtoggle_*_all.ipk
 ```
 
-Note that the build process does not use the official [OpenWrt SDK container image](https://hub.docker.com/r/openwrt/sdk/) as it wouldn't compile the package dependencies; instead, a Debian image is used to set up the build environment from scratch, which requires a considerable amount of time.
-
-Check out [this wiki page](https://github.com/alex-massa/ifmqtoggle/wiki/Manually-building-the-package) for instructions on manually building the package.
+> [!TIP]
+> For instructions on how to build the package manually, refer to this [wiki page](https://github.com/alex-massa/ifmqtoggle/wiki/Manually-building-the-package).
 
 ## Configuration
 
