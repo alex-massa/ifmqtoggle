@@ -15,10 +15,10 @@ MQTT_OPTIONS=$(uci -q get ifmqtoggle."$INSTANCE".mqtt_options)
 
 MQTT_AUTH=""
 if [ -n "$MQTT_USERNAME" ]; then
-    MQTT_AUTH="-u $MQTT_USERNAME"
-    if [ -n "$MQTT_PASSWORD" ]; then
-        MQTT_AUTH="$MQTT_AUTH -P $MQTT_PASSWORD"
-    fi
+    MQTT_AUTH="$MQTT_AUTH -u $MQTT_USERNAME"
+fi
+if [ -n "$MQTT_PASSWORD" ]; then
+    MQTT_AUTH="$MQTT_AUTH -P $MQTT_PASSWORD"
 fi
 
 tmp=$(uci -q get ifmqtoggle."$INSTANCE".mqtt_broker_retry_delay)

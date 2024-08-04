@@ -17,10 +17,12 @@ Always double-check your configuration before applying changes.
 > Additionally, devices running on Apple Silicon should enable Rosetta to build the package successfully. \
 > Please refer to the [official Docker documentation](https://docs.docker.com/desktop/settings/mac/#general) on how to enable Rosetta in Docker Desktop for macOS.
 
+> [!TIP]
+> For instructions on manually building the package, refer to [this wiki page](https://github.com/alex-massa/ifmqtoggle/wiki/Manually-building-the-package).
+
 Clone this repository via Git, then build the package by invoking the `make` utility on the `Makefile` within the `.build` directory:
 ```sh
-cd .build
-make
+make -f .build/Makefile
 ```
 
 Once finished, the build process will result in an `.ipk` package in the `.build` directory. \
@@ -29,9 +31,6 @@ Transfer a copy to the target device via SCP or any method of your choice, then 
 opkg update
 opkg install ifmqtoggle_*_all.ipk
 ```
-
-> [!TIP]
-> For instructions on how to build the package manually, refer to this [wiki page](https://github.com/alex-massa/ifmqtoggle/wiki/Manually-building-the-package).
 
 ## Configuration
 
