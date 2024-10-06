@@ -33,7 +33,7 @@ verify:
 clean:
 	rm -f $(BUILD_DIR)/ifmqtoggle_*_all.ipk
 	rm -f $(BUILD_DIR)/ifmqtoggle_*_all.ipk.sha256
-	$(MAKE) -f $(BUILD_DIR)/Makefile down
+	@$(MAKE) -f $(BUILD_DIR)/Makefile down
 	docker image rm -f $(IMAGE_NAME)
 
 package: build run copy down

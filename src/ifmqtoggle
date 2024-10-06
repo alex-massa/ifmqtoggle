@@ -2,6 +2,7 @@
 
 INSTANCE=$1
 LOCKFILE="/tmp/lockfile_$$"
+SHOULD_EXIT=false
 
 TGT_IFACE=$(uci -q get ifmqtoggle."$INSTANCE".iface)
 #WAN_IFACE=$(ip route | awk '/default/ { print $5 }')  # unused, left for future reference
@@ -25,12 +26,12 @@ tmp=$(uci -q get ifmqtoggle."$INSTANCE".mqtt_broker_retry_delay)
 MQTT_BROKER_RETRY_DELAY=${tmp:-5}
 
 cleanup() {
-    echo "[$INSTANCE]" "Cleaning up..."
+    echo "[$INSTANCE] Cleaning up process "$MQTT_SUB_PID"..."
     kill "$MQTT_SUB_PID" 2>/dev/null
     wait "$MQTT_SUB_PID" 2>/dev/null || true
     rm -f "$LOCKFILE"
     echo "[$INSTANCE]" "Cleanup complete"
-    exit 0
+    SHOULD_EXIT=true
 }
 trap cleanup TERM
 
@@ -64,12 +65,10 @@ handle_message() {
     fi
 }
 
-echo "[$INSTANCE]" "Starting MQTT subscriber for topic $MQTT_TOPIC on broker $MQTT_BROKER_HOST:$MQTT_BROKER_PORT"
 while true; do
-    mqtt_sub_pidfile=$(mktemp -u)
-    exec 3< <(mosquitto_sub -F "%j" -h "$MQTT_BROKER_HOST" -p "$MQTT_BROKER_PORT" -t "$MQTT_TOPIC" ${MQTT_AUTH} ${MQTT_OPTIONS} & echo $! > "$mqtt_sub_pidfile")
-    MQTT_SUB_PID=$(cat "$mqtt_sub_pidfile")
-    rm -f "$mqtt_sub_pidfile"
+    echo "[$INSTANCE]" "Starting MQTT subscriber for topic $MQTT_TOPIC on broker $MQTT_BROKER_HOST:$MQTT_BROKER_PORT"
+    exec 3< <(mosquitto_sub -F "%j" -h "$MQTT_BROKER_HOST" -p "$MQTT_BROKER_PORT" -t "$MQTT_TOPIC" $(echo "$MQTT_AUTH" | xargs) $(echo "$MQTT_OPTIONS" | xargs) & pid=$!; echo $pid)
+    read -r MQTT_SUB_PID <&3
     while read -r message <&3; do
         echo "[$INSTANCE]" "Received message: $message"
         if [ ! -f $LOCKFILE ]; then
@@ -83,6 +82,9 @@ while true; do
             rm -f $LOCKFILE
         fi
     done
+    if [ "$SHOULD_EXIT" = true ]; then
+        break
+    fi
     echo "[$INSTANCE]" "Connection to MQTT broker failed, retrying in $MQTT_BROKER_RETRY_DELAY seconds..."
     sleep "$MQTT_BROKER_RETRY_DELAY"
 done
